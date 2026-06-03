@@ -1,6 +1,7 @@
 import FileUpload from '../components/FileUpload'
 import FileList from '../components/FileList'
 import ActivityFeed from '../components/ActivityFeed'
+import ShareList from '../components/ShareList'
 
 export default function Dashboard() {
   return (
@@ -17,6 +18,7 @@ export default function Dashboard() {
         </div>
         <div>
           <ActivityFeed />
+          <ShareList />
         </div>
       </div>
     </div>
