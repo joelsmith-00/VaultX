@@ -24,12 +24,8 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      try {
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/auth/refresh`,
-          {},
-          { withCredentials: true }
-        )
+        try {
+          const response = await api.post('/api/auth/refresh', {}, { withCredentials: true })
         const newToken = response.data.access_token
         useAuthStore.getState().setToken(newToken)
         originalRequest.headers.Authorization = `Bearer ${newToken}`

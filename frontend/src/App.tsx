@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Login from './pages/Login'
+import Register from './pages/Register'
 
 const queryClient = new QueryClient()
 
@@ -27,16 +29,8 @@ function App() {
           />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/login" element={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="cyber-card text-center">
-                  <h1 className="text-3xl font-bold text-cyber-purple mb-2">
-                    VaultX
-                  </h1>
-                  <p className="text-gray-400">Login page coming soon</p>
-                </div>
-              </div>
-            } />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={
               <div className="flex items-center justify-center min-h-screen">
                 <div className="cyber-card text-center glow-purple">
