@@ -43,6 +43,10 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Auth middleware (decodes access tokens and attaches payload to `request.state`)
+from app.middleware.auth import AuthMiddleware
+app.add_middleware(AuthMiddleware)
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.perf_counter()
