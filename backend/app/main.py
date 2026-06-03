@@ -54,3 +54,32 @@ async def root():
 @app.get("/api/health", tags=["Health"])
 async def health():
     return {"status": "healthy", "version": "1.0.0", "environment": settings.ENVIRONMENT}
+
+@app.get("/api/health/detailed", tags=["Health"])
+async def health_detailed():
+    import redis.asyncio as aioredis
+    results = {
+        "api": "healthy",
+        "database": "unknown",
+        "redis": "unknown",
+        "storage": "unknown",
+    }
+    
+    # Check Redis
+    try:
+        r = aioredis.from_url(settings.REDIS_URL)
+        await r.ping()
+        await r.aclose()
+        results["redis"] = "healthy"
+    except Exception as e:
+        results["redis"] = f"unhealthy: {str(e)}"
+    
+    overall = "healthy" if all(
+        v == "healthy" for v in results.values()
+    ) else "degraded"
+    
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=200 if overall == "healthy" else 503,
+        content={"status": overall, **results}
+    )
