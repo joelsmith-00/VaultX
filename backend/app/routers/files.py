@@ -1,5 +1,4 @@
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, status
-from fastapi import Request
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, status, Request
 import uuid
 import asyncio
 
@@ -29,3 +28,21 @@ async def upload_file(request: Request, file: UploadFile, db: AsyncSession = Dep
     db.add(f)
     await db.flush()
     return {"id": f.id, "filename": f.filename, "size": f.size, "url": storage_service.build_s3_url(key)}
+
+
+@router.get("")
+async def list_files(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = select(File).where(File.owner_id == current_user.id, File.is_deleted == False)
+    r = await db.execute(q)
+    items = r.scalars().all()
+    result = []
+    for it in items:
+        result.append({
+            "id": it.id,
+            "filename": it.filename,
+            "size": it.size,
+            "content_type": it.content_type,
+            "url": storage_service.build_s3_url(it.s3_key),
+            "created_at": it.created_at.isoformat() if it.created_at else None,
+        })
+    return result
