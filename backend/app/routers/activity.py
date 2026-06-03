@@ -10,11 +10,11 @@ router = APIRouter(prefix="/api/activity", tags=["activity"])
 
 
 @router.get("")
-async def list_activity(limit: int = 50, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    q = select(Activity).where(Activity.user_id == current_user.id).order_by(Activity.created_at.desc()).limit(limit)
+async def list_activity(limit: int = 50, offset: int = 0, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = select(Activity).where(Activity.user_id == current_user.id).order_by(Activity.created_at.desc()).offset(offset).limit(limit)
     r = await db.execute(q)
     rows = r.scalars().all()
-    return [
+    items = [
         {
             "id": a.id,
             "action": a.action,
@@ -25,3 +25,5 @@ async def list_activity(limit: int = 50, db: AsyncSession = Depends(get_db), cur
         }
         for a in rows
     ]
+    next_offset = offset + len(items) if len(items) == limit else None
+    return {"items": items, "next_offset": next_offset}
