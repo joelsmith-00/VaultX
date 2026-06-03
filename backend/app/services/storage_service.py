@@ -42,3 +42,12 @@ async def delete_object(key: str):
 def build_s3_url(key: str) -> str:
     # Return a public URL for local MinIO; production may use presigned URLs
     return f"{settings.S3_ENDPOINT_URL.rstrip('/')}" + f"/{settings.S3_BUCKET_NAME}/{key}"
+
+
+def generate_presigned_url(key: str, expires_in: int = 3600) -> str:
+    client = _client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.S3_BUCKET_NAME, "Key": key},
+        ExpiresIn=expires_in,
+    )

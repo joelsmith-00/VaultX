@@ -10,6 +10,9 @@ from app.models.file import File
 from app.models.folder import Folder
 from app.utils import generate_verification_token, hash_password
 from app.config import settings
+from app.utils import verify_password
+from app.services import generate_presigned_url
+from datetime import timezone
 
 router = APIRouter(tags=["Shares"], prefix="/api/shares")
 
@@ -50,3 +53,50 @@ async def get_share_info(token: str, db: AsyncSession = Depends(get_db)):
     if not share:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
     return {"id": share.id, "file_id": share.file_id, "folder_id": share.folder_id, "expires_at": share.expires_at, "max_uses": share.max_uses, "uses": share.uses}
+
+
+@router.post("/access")
+async def access_share(token: str, password: str | None = None, db: AsyncSession = Depends(get_db)):
+    q = select(Share).where(Share.token == token, Share.is_active == True)
+    r = await db.execute(q)
+    share = r.scalar_one_or_none()
+    if not share:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
+    # check expiry
+    if share.expires_at:
+        now = datetime.now(timezone.utc)
+        if share.expires_at < now:
+            share.is_active = False
+            await db.flush()
+            raise HTTPException(status_code=status.HTTP_410_GONE, detail="Share expired")
+    # check password
+    if share.password_hash:
+        if not password or not verify_password(password, share.password_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    # check uses
+    if share.max_uses is not None and share.uses >= (share.max_uses or 0):
+        share.is_active = False
+        await db.flush()
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Share max uses exceeded")
+
+    # increment uses
+    share.uses = (share.uses or 0) + 1
+    if share.max_uses is not None and share.uses >= share.max_uses:
+        share.is_active = False
+    await db.flush()
+
+    # If file share, return presigned URL
+    if share.file_id:
+        fq = select(File).where(File.id == share.file_id)
+        fr = await db.execute(fq)
+        file = fr.scalar_one_or_none()
+        if not file:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        url = generate_presigned_url(file.s3_key, expires_in=3600)
+        return {"type": "file", "file": {"id": file.id, "filename": file.filename, "content_type": file.content_type, "size": file.size}, "url": url}
+
+    # Folder share - return metadata (file listing not yet implemented)
+    if share.folder_id:
+        return {"type": "folder", "folder_id": share.folder_id, "message": "Folder share access - listing not implemented"}
+
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid share")

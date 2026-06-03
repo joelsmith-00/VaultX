@@ -19,3 +19,5 @@ __all__ = [
 from app.services.storage_service import upload_bytes, delete_object, build_s3_url
 
 __all__.extend(["upload_bytes", "delete_object", "build_s3_url"])
+from app.services.storage_service import generate_presigned_url
+__all__.append("generate_presigned_url")
