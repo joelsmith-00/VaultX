@@ -13,6 +13,7 @@ from app.models.user import User
 from app.services import generate_presigned_url
 from fastapi.responses import JSONResponse
 from urllib.parse import quote
+from app.services.activity_service import log_activity
 
 router = APIRouter(tags=["Files"], prefix="/api/files")
 
@@ -30,6 +31,8 @@ async def upload_file(request: Request, file: UploadFile, db: AsyncSession = Dep
     f = File(owner_id=current_user.id, filename=file.filename, content_type=file.content_type, size=len(contents), s3_key=key)
     db.add(f)
     await db.flush()
+    # log activity
+    await log_activity(db, current_user.id, "upload", "file", f.id, {"filename": f.filename, "size": f.size})
     return {"id": f.id, "filename": f.filename, "size": f.size, "url": storage_service.build_s3_url(key)}
 
 
@@ -61,6 +64,8 @@ async def download_file(file_id: str, db: AsyncSession = Depends(get_db), curren
     if f.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     url = generate_presigned_url(f.s3_key, expires_in=600)
+    # log download
+    await log_activity(db, current_user.id, "download", "file", f.id, {"filename": f.filename})
     return {"url": url, "filename": f.filename, "content_type": f.content_type}
 
 
@@ -80,4 +85,6 @@ async def preview_file(file_id: str, db: AsyncSession = Depends(get_db), current
     # generate presigned URL with inline disposition
     # some S3 implementations support ResponseContentDisposition override
     url = generate_presigned_url(f.s3_key, expires_in=300)
+    # log preview
+    await log_activity(db, current_user.id, "preview", "file", f.id, {"filename": f.filename})
     return JSONResponse(content={"url": url, "content_type": ctype, "filename": f.filename})

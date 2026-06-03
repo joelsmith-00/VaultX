@@ -39,6 +39,8 @@ from app.routers.folders import router as folders_router
 app.include_router(folders_router)
 from app.routers.shares import router as shares_router
 app.include_router(shares_router)
+from app.routers.activity import router as activity_router
+app.include_router(activity_router)
 
 app.add_middleware(
     CORSMiddleware,
