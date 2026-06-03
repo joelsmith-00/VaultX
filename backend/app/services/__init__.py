@@ -15,3 +15,7 @@ __all__ = [
 	"revoke_refresh_token",
 	"revoke_all_user_refresh_tokens",
 ]
+
+from app.services.storage_service import upload_bytes, delete_object, build_s3_url
+
+__all__.extend(["upload_bytes", "delete_object", "build_s3_url"])
