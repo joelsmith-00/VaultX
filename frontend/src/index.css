@@ -1,0 +1,34 @@
+body {
+  margin: 0;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-cyber-dark text-white;
+  }
+}
+
+@layer components {
+  .cyber-card {
+    @apply bg-cyber-card border border-cyber-border rounded-xl p-6;
+  }
+  .cyber-btn {
+    @apply bg-cyber-purple hover:bg-purple-600 text-white font-semibold 
+           py-2 px-6 rounded-lg transition-all duration-200;
+  }
+  .cyber-input {
+    @apply bg-gray-900 border border-cyber-border text-white rounded-lg 
+           px-4 py-2 focus:outline-none focus:border-cyber-purple 
+           focus:ring-1 focus:ring-cyber-purple transition-all;
+  }
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(127, 90, 240, 0.3);
+  }
+  .glow-teal {
+    box-shadow: 0 0 20px rgba(44, 182, 125, 0.3);
+  }
+}
