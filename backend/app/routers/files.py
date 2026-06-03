@@ -10,6 +10,9 @@ from app.database import get_db
 from app.services import storage_service
 from app.models.file import File
 from app.models.user import User
+from app.services import generate_presigned_url
+from fastapi.responses import JSONResponse
+from urllib.parse import quote
 
 router = APIRouter(tags=["Files"], prefix="/api/files")
 
@@ -46,3 +49,35 @@ async def list_files(db: AsyncSession = Depends(get_db), current_user: User = De
             "created_at": it.created_at.isoformat() if it.created_at else None,
         })
     return result
+
+
+@router.get("/{file_id}/download")
+async def download_file(file_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = select(File).where(File.id == file_id)
+    r = await db.execute(q)
+    f = r.scalar_one_or_none()
+    if not f:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    if f.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    url = generate_presigned_url(f.s3_key, expires_in=600)
+    return {"url": url, "filename": f.filename, "content_type": f.content_type}
+
+
+@router.get("/{file_id}/preview")
+async def preview_file(file_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = select(File).where(File.id == file_id)
+    r = await db.execute(q)
+    f = r.scalar_one_or_none()
+    if not f:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    if f.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    # only allow inline preview for images and PDFs
+    ctype = (f.content_type or "").lower()
+    if not (ctype.startswith("image/") or ctype == "application/pdf"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Preview not supported for this file type")
+    # generate presigned URL with inline disposition
+    # some S3 implementations support ResponseContentDisposition override
+    url = generate_presigned_url(f.s3_key, expires_in=300)
+    return JSONResponse(content={"url": url, "content_type": ctype, "filename": f.filename})
