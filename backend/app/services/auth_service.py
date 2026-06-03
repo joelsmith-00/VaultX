@@ -12,8 +12,10 @@ from app.utils import (
     verify_password,
     create_access_token,
     create_refresh_token,
+    create_reset_token,
     decode_token,
 )
+from app.services.email_service import send_password_reset_email
 
 
 async def create_user(db: AsyncSession, email: str, username: str, password: str) -> User:
@@ -105,3 +107,34 @@ async def revoke_all_user_refresh_tokens(db: AsyncSession, user_id: str) -> int:
     await db.execute(q)
     await db.flush()
     return 1
+
+
+async def send_password_reset(db: AsyncSession, email: str) -> bool:
+    q = select(User).where(User.email == email)
+    r = await db.execute(q)
+    user = r.scalar_one_or_none()
+    if not user:
+        # Don't reveal whether the email exists; behave as if sent
+        return False
+    payload = {"sub": user.id, "email": user.email}
+    token = create_reset_token(payload)
+    # Send email (synchronous); that's acceptable for now
+    send_password_reset_email(user.email, token, user.username)
+    return True
+
+
+async def confirm_password_reset(db: AsyncSession, token: str, new_password: str) -> bool:
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "reset":
+        return False
+    user_id = payload.get("sub")
+    if not user_id:
+        return False
+    q = select(User).where(User.id == user_id)
+    r = await db.execute(q)
+    user = r.scalar_one_or_none()
+    if not user:
+        return False
+    user.password_hash = hash_password(new_password)
+    await db.flush()
+    return True

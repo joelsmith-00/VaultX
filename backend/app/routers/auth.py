@@ -8,6 +8,8 @@ from app.schemas.user import (
     UserLoginRequest,
     TokenResponse,
     RefreshTokenRequest,
+    PasswordResetRequest,
+    PasswordResetConfirmRequest,
 )
 from app.services import (
     create_user,
@@ -59,3 +61,19 @@ async def logout(payload: RefreshTokenRequest, db: AsyncSession = Depends(get_db
     if not ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token or already revoked")
     return None
+
+
+@router.post("/api/auth/password-reset", status_code=status.HTTP_202_ACCEPTED)
+async def password_reset_request(payload: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    # send password reset email if user exists
+    await __import__("app.services").services.auth_service.send_password_reset(db, payload.email)
+    # respond generically
+    return {"message": "If an account with that email exists, a reset link has been sent."}
+
+
+@router.post("/api/auth/password-reset/confirm", status_code=status.HTTP_200_OK)
+async def password_reset_confirm(payload: PasswordResetConfirmRequest, db: AsyncSession = Depends(get_db)):
+    ok = await __import__("app.services").services.auth_service.confirm_password_reset(db, payload.token, payload.new_password)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+    return {"message": "Password has been reset."}
